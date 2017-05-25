@@ -91,11 +91,12 @@ server = shinyServer(function(input, output, session) {
             #                                                 "entered the room.")))
             # })
             
-            if(length(vars$availHands)>0) {
-                pick = sample(vars$availHands,1)
-                sessionVars$handNum <- pick
-                vars$availHands = vars$availHands[which(vars$availHands!=pick)]
-            }
+            ###Automatically assign an available hand to new session
+            # if(length(vars$availHands)>0) {
+            #     pick = sample(vars$availHands,1)
+            #     sessionVars$handNum <- pick
+            #     vars$availHands = vars$availHands[which(vars$availHands!=pick)]
+            # }
             ###If a person isn't assigned a hand on initialization, remove 
             ###user interface and add an option to obtain an available hand
             
@@ -202,16 +203,30 @@ server = shinyServer(function(input, output, session) {
         
     })
     
+    
+    ###Dropping control of a hand of cards
     observeEvent(input$quit,{
+        ###Add hand back to the pool of available hands
+        vars$availHands = c(vars$availHands,sessionVars$handNum)
         sessionVars$handNum = 0
     })
     
+    ###Take control of a hand of cards
     observeEvent(input$join,{
-        pick = sample(vars$availHands,1)
-        sessionVars$handNum <- pick
-        vars$availHands = vars$availHands[which(vars$availHands!=pick)]
+        ###Take a random available hand.
+        if(length(vars$availHands)>0){
+            pick = sample(vars$availHands,1)
+            sessionVars$handNum <- pick
+            vars$availHands = vars$availHands[which(vars$availHands!=pick)]
+        }
+    })
+    
+    ###Observe a hand of cards; request permission from current owner of hand
+    observeEvent(input$request_view,{
+        
         
     })
+    
     
     ###Game displays/mechanics helpers
     
@@ -281,6 +296,9 @@ ui = fluidPage(
         
         helpText("Your Hand Number:"),
         textOutput("handNumber"),
+        
+        ###Debug
+        tableOutput("openHands"),
         
         # uiOutput("gameControls")
         
