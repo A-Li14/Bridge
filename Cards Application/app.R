@@ -4,6 +4,7 @@ library(shiny)
 library(stringr)
 require(data.table)
 require(ids)
+require(DT)
 
 ###To Do List
 ###Enable multiple people to view one set of cards
@@ -27,7 +28,7 @@ require(ids)
     # saveRDS(deck,"deck.Rds")
 # }
 
-deck = readRDS("data/deck.RDS")
+deck = readRDS("data/deck2.RDS")
 
 # Globally define a place where all users can share some reactive data.
 vars <- reactiveValues(users=NULL, hands=data.table(), table=NULL, 
@@ -159,10 +160,25 @@ server = shinyServer(function(input, output, session) {
     observe({
         #input$reset
         vars$hands
-        if(input$reset>=1|vars$resetCount>=1) {
-            updateSelectInput(session,"card_choice",label="Select a Card",
-                              choices = yourHand()$card
-            )
+        #if(!is.null(input$card_choice)) {
+        if(input$card_choice!="") {
+            #print("not null card choice")
+            #print(input$card_choice)
+            if(input$reset>=1|vars$resetCount>=1) {
+                
+                updateSelectInput(session,"card_choice",label="Select a Card",
+                                  choices = yourHand()$card,selected=input$card_choice
+                )
+                
+            }
+        }
+        else {
+            #print("is null card choice")
+            if(input$reset>=1|vars$resetCount>=1) {
+                updateSelectInput(session,"card_choice",label="Select a Card",
+                                  choices = yourHand()$card
+                )
+            }
         }
     })
     
@@ -174,15 +190,17 @@ server = shinyServer(function(input, output, session) {
         #     vars$turn = vars$turn + 1
             
         ###Alternate: if the player doesn't have a card out, play it. 
-        if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
-            played = which(yourHand()$card==input$card_choice)
-            vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
-            
-            vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
-            
-            updateSelectInput(session,"card_choice",label="Select a Card",
-                              choices = yourHand()$card
-            )
+        if(input$card_choice!=""){
+            if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
+                played = which(yourHand()$card==input$card_choice)
+                vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
+                
+                vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
+                
+                updateSelectInput(session,"card_choice",label="Select a Card",
+                                  choices = yourHand()$card
+                )
+            }
         }
     
         # }
@@ -203,36 +221,25 @@ server = shinyServer(function(input, output, session) {
         
     })
     
-    
-    ###Dropping control of a hand of cards
     observeEvent(input$quit,{
-        ###Add hand back to the pool of available hands
         vars$availHands = c(vars$availHands,sessionVars$handNum)
         sessionVars$handNum = 0
+        
     })
     
-    ###Take control of a hand of cards
     observeEvent(input$join,{
         ###Take a random available hand.
-        if(length(vars$availHands)>0){
-            pick = sample(vars$availHands,1)
-            sessionVars$handNum <- pick
-            vars$availHands = vars$availHands[which(vars$availHands!=pick)]
-        }
-    })
-    
-    ###Observe a hand of cards; request permission from current owner of hand
-    observeEvent(input$request_view,{
-        
+        pick = sample(vars$availHands,1)
+        sessionVars$handNum <- pick
+        vars$availHands = vars$availHands[which(vars$availHands!=pick)]
         
     })
-    
     
     ###Game displays/mechanics helpers
     
     ##card table
-    output$playedDisplay = renderTable({
-        vars$lastPlays
+    output$playedDisplay = renderDataTable({
+        datatable(vars$lastPlays,escape=F)
         # dt = vars$lastPlays
         # setnames(dt,c("User","Plays"))
         # dt
@@ -244,8 +251,9 @@ server = shinyServer(function(input, output, session) {
     })
     
     ##Your hand
-    output$handDisplay = renderTable({
-        yourHand()
+    output$handDisplay = renderDataTable({
+        #datatable(yourHand()[,.(Image=path)],escape=F)
+        datatable(t(yourHand()$path),escape=F,rownames=F)
         # dt = yourHand()
         # setnames(dt,"card","Your_Hand")
         # dt[,Your_Hand]
@@ -315,7 +323,10 @@ ui = fluidPage(
                          tableOutput("player_list")
         ),
         conditionalPanel("output.handNumber=='0'",
-                         actionButton("join","Take Available Hand")
+                         actionButton("join","Take Available Hand"),
+                         selectInput("hand_choice","Take Hand Number",1:4)#,
+                         #actionButton("request_view","Request Hand View"),
+                         #selectInput("hand_view_choice","View Number",1:4)
         )
     ),
     
@@ -326,8 +337,8 @@ ui = fluidPage(
     #tableOutput("openHands"),
     mainPanel(
         fluidRow(
-            tableOutput("playedDisplay"),
-            tableOutput("handDisplay")
+            dataTableOutput("playedDisplay"),
+            dataTableOutput("handDisplay")
             
         )
     )
