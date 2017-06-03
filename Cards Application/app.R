@@ -51,7 +51,7 @@ for(i in 1:4) {
 vars <- reactiveValues(users=NULL, hands=initialHands, table=NULL, 
                        availHands=1:4, 
                        #lastPlays = data.table(User=character(),Play=tags$img()), 
-                       lastPlays = data.table(User=character(),Play=character()), 
+                       lastPlays = data.table(UserNum=numeric(),User=character(),Play=character()), 
                        turn = 1,
                        resetCount=1)
 ###resetCount is a dummy variable to enable other players to have select options
@@ -206,7 +206,7 @@ server = shinyServer(function(input, output, session) {
             if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
                 played = which(yourHand()$card==input$card_choice)
                 #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
-                vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,path_tag]))
+                vars$lastPlays = rbind(UserNum=vars$lastPlays,data.table(sessionVars$handNum,User=sessionVars$username,Play=yourHand()[played,path_tag]))
                 #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,tags$img(path)]))
                 
                 vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
@@ -222,7 +222,7 @@ server = shinyServer(function(input, output, session) {
     
     ##clears card table
     observeEvent(input$nextTurn,{
-        vars$lastPlays = data.table(User=character(),Play=character())
+        vars$lastPlays = data.table(UserNum=sessionVars$handNum,User=character(),Play=character())
         #vars$lastPlays = data.table(User=character(),Play=tags$img())
     })
     
@@ -261,7 +261,7 @@ server = shinyServer(function(input, output, session) {
     
     #card table
     output$playedDisplay = renderDataTable({
-        datatable(vars$lastPlays,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
+        datatable(vars$lastPlays[sort(UserNum)],rownames=F,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
         # dt = vars$lastPlays
         # setnames(dt,c("User","Plays"))
         # dt
@@ -341,7 +341,7 @@ server = shinyServer(function(input, output, session) {
                         #print(paste("remove:",remove))
                         #print(paste("buttonVals:",buttonVals))
                         #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,card]))
-                        vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,path_tag]))
+                        vars$lastPlays = rbind(vars$lastPlays,data.table(UserNum=sessionVars$handNum,User=sessionVars$username,Play=yourHand()[remove,path_tag]))
                         print(vars$lastPlays)
                         #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,tags$img()]))
                         vars$hands[[sessionVars$handNum]]=vars$hands[[sessionVars$handNum]][-remove]
