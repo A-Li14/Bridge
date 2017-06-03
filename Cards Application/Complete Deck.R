@@ -4,8 +4,9 @@ require(stringr)
 
 deck = readRDS("Cards Application/data/deck.RDS")
 image_paths = readRDS("Cards Application/data/image_paths.RDS")
+#image_paths = paste('<img src="',files,'" height = "100" width = "72"></img>',sep="")
 
-image_dt = data.table(path=image_paths)
+image_dt = data.table(path=image_paths,path_tag=paste('<img src="',image_paths,'" height = "100" width = "72"></img>',sep=""))
 image_dt[,suit:="Spades"]
 image_dt[grep("heart",path),suit:="Hearts"]
 image_dt[grep("clubs",path),suit:="Clovers"]
