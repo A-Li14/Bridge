@@ -205,7 +205,8 @@ server = shinyServer(function(input, output, session) {
         if(input$card_choice!=""){
             if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
                 played = which(yourHand()$card==input$card_choice)
-                vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
+                #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
+                vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,path_tag]))
                 #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,tags$img(path)]))
                 
                 vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
@@ -258,7 +259,7 @@ server = shinyServer(function(input, output, session) {
     
     ###Game displays/mechanics helpers
     
-    ##card table
+    #card table
     output$playedDisplay = renderDataTable({
         datatable(vars$lastPlays,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
         # dt = vars$lastPlays
@@ -266,6 +267,36 @@ server = shinyServer(function(input, output, session) {
         # dt
     })
     
+    # output$playedDisplay = renderDataTable({
+    #     
+    #     disp=vars$lastPlays
+    #     disp[deck,Played:=i.path]
+    #     
+    #     #disp = data.table(User=vars$lastPlays$User,Played=tags$img(src=yourHand()[card==vars$lastPlays$Play,path])[[1]])
+    #     
+    #     #print(deck[which(card==vars$lastPlays$Play),path])
+    #     disp=data.table()
+    #     print("display: ping")
+    #     #print(paste("sessionname",sessionVars$username))
+    #     #print(paste("lastplayedUser",vars$lastPlayed$User))
+    #     
+    #     moved_list = vars$lastPlayed$User
+    #     if(length(moved_list)>0)
+    #     
+    #     if(sessionVars$username%in%vars$lastPlayed$User){
+    #         print("activated")
+    #         disp = data.table(User=vars$lastPlays$User,
+    #                           Played=paste('<img src="',deck[card==vars$lastPlays[User==sessionVars$username,Play],path],'" height = "100" width = "72"></img>',sep=""))
+    #     }
+    #     #disp=data.table()
+    #     # print(names(yourHand()))
+    #     # print(yourHand()[card==vars$lastPlays$Play,path])
+    #     # print(yourHand()$card)
+    #     # print(vars$lastPlays$Play)
+    #     # print(tags$img(src=yourHand()[card==vars$lastPlays$Play,path]))
+    #     datatable(disp,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
+    # })
+
     ##for debug purposes; hands which are not yet assigned to a player
     output$openHands = renderTable({
         data.table(vars$availHands)
@@ -306,10 +337,12 @@ server = shinyServer(function(input, output, session) {
                 if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
                     remove = which(buttonVals>sessionVars$buttonVals)
                     if(length(remove)>0) {
-                        
+                        print("activated: hand actionbutton removal")
                         #print(paste("remove:",remove))
                         #print(paste("buttonVals:",buttonVals))
-                        vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,card]))
+                        #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,card]))
+                        vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,path_tag]))
+                        print(vars$lastPlays)
                         #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,tags$img()]))
                         vars$hands[[sessionVars$handNum]]=vars$hands[[sessionVars$handNum]][-remove]
                         
