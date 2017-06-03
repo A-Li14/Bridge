@@ -169,60 +169,63 @@ server = shinyServer(function(input, output, session) {
         vars$resetCount = vars$resetCount + 1
     })
     
-    observe({
-        #input$reset
-        vars$hands
-        #if(!is.null(input$card_choice)) {
-        if(input$card_choice!="") {
-            #print("not null card choice")
-            #print(input$card_choice)
-            if(input$reset>=1|vars$resetCount>=1) {
-                
-                updateSelectInput(session,"card_choice",label="Select a Card",
-                                  choices = yourHand()$card,selected=input$card_choice
-                )
-                
-            }
-        }
-        else {
-            #print("is null card choice")
-            if(input$reset>=1|vars$resetCount>=1) {
-                updateSelectInput(session,"card_choice",label="Select a Card",
-                                  choices = yourHand()$card
-                )
-            }
-        }
-    })
+    # observe({
+    #     #input$reset
+    #     vars$hands
+    #     #if(!is.null(input$card_choice)) {
+    #     if(input$card_choice!="") {
+    #         #print("not null card choice")
+    #         #print(input$card_choice)
+    #         if(input$reset>=1|vars$resetCount>=1) {
+    #             
+    #             updateSelectInput(session,"card_choice",label="Select a Card",
+    #                               choices = yourHand()$card,selected=input$card_choice
+    #             )
+    #             
+    #         }
+    #     }
+    #     else {
+    #         #print("is null card choice")
+    #         if(input$reset>=1|vars$resetCount>=1) {
+    #             updateSelectInput(session,"card_choice",label="Select a Card",
+    #                               choices = yourHand()$card
+    #             )
+    #         }
+    #     }
+    # })
     
     ###Plays a card from your hand: reads your selection and removes the card
-    observeEvent(input$play,{
-        
-        ###If it is this player's turn, play a card
-        # if(vars$users[vars$turn%%4]==sessionVars$username) {
-        #     vars$turn = vars$turn + 1
-            
-        ###Alternate: if the player doesn't have a card out, play it. 
-        if(input$card_choice!=""){
-            if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
-                played = which(yourHand()$card==input$card_choice)
-                #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
-                vars$lastPlays = rbind(UserNum=vars$lastPlays,data.table(sessionVars$handNum,User=sessionVars$username,Play=yourHand()[played,path_tag]))
-                #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,tags$img(path)]))
-                
-                vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
-                
-                updateSelectInput(session,"card_choice",label="Select a Card",
-                                  choices = yourHand()$card
-                )
-            }
-        }
+
+    ###Using card Actionbutton interface instead
     
-        # }
-    })
+    # observeEvent(input$play,{
+    #     
+    #     ###If it is this player's turn, play a card
+    #     # if(vars$users[vars$turn%%4]==sessionVars$username) {
+    #     #     vars$turn = vars$turn + 1
+    #         
+    #     ###Alternate: if the player doesn't have a card out, play it. 
+    #     if(input$card_choice!=""){
+    #         if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
+    #             played = which(yourHand()$card==input$card_choice)
+    #             #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
+    #             vars$lastPlays = rbind(UserNum=vars$lastPlays,data.table(sessionVars$handNum,User=sessionVars$username,Play=yourHand()[played,path_tag]))
+    #             #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,tags$img(path)]))
+    #             
+    #             vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
+    #             
+    #             updateSelectInput(session,"card_choice",label="Select a Card",
+    #                               choices = yourHand()$card
+    #             )
+    #         }
+    #     }
+    # 
+    #     # }
+    # })
     
     ##clears card table
     observeEvent(input$nextTurn,{
-        vars$lastPlays = data.table(UserNum=sessionVars$handNum,User=character(),Play=character())
+        vars$lastPlays = data.table(UserNum=numeric(),User=character(),Play=character())
         #vars$lastPlays = data.table(User=character(),Play=tags$img())
     })
     
@@ -261,7 +264,7 @@ server = shinyServer(function(input, output, session) {
     
     #card table
     output$playedDisplay = renderDataTable({
-        datatable(vars$lastPlays[sort(UserNum)],rownames=F,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
+        datatable(vars$lastPlays,rownames=F,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
         # dt = vars$lastPlays
         # setnames(dt,c("User","Plays"))
         # dt
@@ -334,10 +337,10 @@ server = shinyServer(function(input, output, session) {
             })
             
             if(class(buttonVals)!="list"){
-                if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
+                if(!sessionVars$handNum%in%vars$lastPlays[,UserNum]&nrow(yourHand())>0) {
                     remove = which(buttonVals>sessionVars$buttonVals)
                     if(length(remove)>0) {
-                        print("activated: hand actionbutton removal")
+                        #print("activated: hand actionbutton removal")
                         #print(paste("remove:",remove))
                         #print(paste("buttonVals:",buttonVals))
                         #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,card]))
@@ -413,9 +416,10 @@ ui = fluidPage(
                          actionButton("reset","Reset Hands"),
                          actionButton("quit","Drop Hand"),
                          textInput("user", "Your User ID:", value=""),
-
-                         selectInput("card_choice","Select a Card",choices=NULL),
-                         actionButton("play","Play Selected Card"),
+                            
+                         ###Card actionbutton interface replaced
+                         # selectInput("card_choice","Select a Card",choices=NULL),
+                         # actionButton("play","Play Selected Card"),
 
                          actionButton("nextTurn","Next Turn"),
                          tableOutput("player_list")
