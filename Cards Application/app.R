@@ -1,15 +1,14 @@
 ###Attempt to create Card playing application from scratch
 #setwd("~/R/Bridge/Basic Version")
-library(shiny)
-library(stringr)
+require(shiny)
+require(stringr)
 require(data.table)
 require(ids)
 require(DT)
 
 ###To Do List
 ###Enable multiple people to view one set of cards
-###Create a visual display of cards in your hand and on the table
-
+###Turn visual display for cards into buttons
 
 
 # Create deck of cards
@@ -29,14 +28,9 @@ require(DT)
 # }
 
 deck = readRDS("data/deck2.RDS")
-
-# Globally define a place where all users can share some reactive data.
-vars <- reactiveValues(users=NULL, hands=data.table(), table=NULL, 
-                       availHands=1:4, 
-                       lastPlays = data.table(User=character(),Play=character()), 
-                       turn = 1,
-                       resetCount=0)
-###resetCount is a dummy variable to enable other players to have select options
+source("CardButtons.R")
+width = "72"
+height = "100"
 
 generateHands = function() {
     vars$hands = vector("list",4)
@@ -46,6 +40,24 @@ generateHands = function() {
         vars$hands[[i]] = deck[dist[((i-1)*13+1):(i*13)]][order(suit,number)]
     }
 }
+
+initialHands = vector("list",4)
+dist = sample(1:52,replace=F)
+for(i in 1:4) {
+    initialHands[[i]] = deck[dist[((i-1)*13+1):(i*13)]][order(suit,number)]
+}
+
+# Globally define a place where all users can share some reactive data.
+vars <- reactiveValues(users=NULL, hands=initialHands, table=NULL, 
+                       availHands=1:4, 
+                       #lastPlays = data.table(User=character(),Play=tags$img()), 
+                       lastPlays = data.table(User=character(),Play=character()), 
+                       turn = 1,
+                       resetCount=1)
+###resetCount is a dummy variable to enable other players to have select options
+
+
+
 
 # Restore sets of hands or generate them
 # if(file.exists("hands.Rds")) {
@@ -63,7 +75,7 @@ generateHands = function() {
 server = shinyServer(function(input, output, session) {
     
     # Create a spot for reactive variables specific to this particular session
-    sessionVars <- reactiveValues(username = "",handNum = 0)
+    sessionVars <- reactiveValues(username = "",handNum = 0,buttonVals=numeric(13))
     
     ###Tracking whether an identity has been created on the application
     init = FALSE
@@ -194,6 +206,7 @@ server = shinyServer(function(input, output, session) {
             if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
                 played = which(yourHand()$card==input$card_choice)
                 vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,card]))
+                #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[played,tags$img(path)]))
                 
                 vars$hands[[sessionVars$handNum]] = vars$hands[[sessionVars$handNum]][-played]
                 
@@ -209,6 +222,7 @@ server = shinyServer(function(input, output, session) {
     ##clears card table
     observeEvent(input$nextTurn,{
         vars$lastPlays = data.table(User=character(),Play=character())
+        #vars$lastPlays = data.table(User=character(),Play=tags$img())
     })
     
     ##your hand
@@ -222,16 +236,23 @@ server = shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$quit,{
-        vars$availHands = c(vars$availHands,sessionVars$handNum)
+        vars$availHands = sort(c(vars$availHands,sessionVars$handNum))
         sessionVars$handNum = 0
+        updateSelectInput(session,"hand_choice","Take Hand Number",vars$availHands)
         
     })
     
     observeEvent(input$join,{
         ###Take a random available hand.
-        pick = sample(vars$availHands,1)
+        #pick = sample(vars$availHands,1)
+        #print(paste("random choice",pick))
+        pick = as.numeric(input$hand_choice) ###Need to turn it into a numeric...
+        #print(class(input$hand_choice))
+        #print(paste("selected choice",pick))        
         sessionVars$handNum <- pick
         vars$availHands = vars$availHands[which(vars$availHands!=pick)]
+        
+        updateSelectInput(session,"hand_choice","Take Hand Number",vars$availHands)
         
     })
     
@@ -239,7 +260,7 @@ server = shinyServer(function(input, output, session) {
     
     ##card table
     output$playedDisplay = renderDataTable({
-        datatable(vars$lastPlays,escape=F)
+        datatable(vars$lastPlays,escape=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
         # dt = vars$lastPlays
         # setnames(dt,c("User","Plays"))
         # dt
@@ -251,12 +272,54 @@ server = shinyServer(function(input, output, session) {
     })
     
     ##Your hand
-    output$handDisplay = renderDataTable({
-        #datatable(yourHand()[,.(Image=path)],escape=F)
-        datatable(t(yourHand()$path),escape=F,rownames=F)
-        # dt = yourHand()
-        # setnames(dt,"card","Your_Hand")
-        # dt[,Your_Hand]
+    # output$handDisplay = renderDataTable({
+    #     #datatable(yourHand()[,.(Image=path)],escape=F)
+    #     display = NULL
+    #     if(sessionVars$handNum!=0)
+    #         display=datatable(t(yourHand()$path),escape=F,rownames=F,options=list(paging=F,searching=F,info=F,autoWidth=F,columns.searchable=F))
+    #     display
+    #     # dt = yourHand()
+    #     # setnames(dt,"card","Your_Hand")
+    #     # dt[,Your_Hand]
+    #     
+    # })
+    
+    ###ActionButton Version of your hand
+    output$handDisplay = renderUI({
+        display=NULL
+        if(sessionVars$handNum!=0){
+            display=lapply(1:nrow(yourHand()),function(i){
+                cardButton2(yourHand()[i,],height,width)
+            })
+        }
+        display
+    })
+    
+    ###Delete cards from yourHand via the button interface
+    observe({
+        if(nrow(yourHand())>0) { 
+            buttonVals=sapply(1:nrow(yourHand()),function(i){
+                input[[yourHand()[i,card]]]
+            })
+            
+            if(class(buttonVals)!="list"){
+                if(!sessionVars$username%in%vars$lastPlays[,User]&nrow(yourHand())>0) {
+                    remove = which(buttonVals>sessionVars$buttonVals)
+                    if(length(remove)>0) {
+                        
+                        #print(paste("remove:",remove))
+                        #print(paste("buttonVals:",buttonVals))
+                        vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,card]))
+                        #vars$lastPlays = rbind(vars$lastPlays,data.table(User=sessionVars$username,Play=yourHand()[remove,tags$img()]))
+                        vars$hands[[sessionVars$handNum]]=vars$hands[[sessionVars$handNum]][-remove]
+                        
+                        
+                        
+                    }
+                }
+                sessionVars$buttonVals = buttonVals
+            }
+        }
     })
     
     ##Active player: var$turn is currently not in use
@@ -302,11 +365,13 @@ ui = fluidPage(
     
     sidebarPanel(
         
+        helpText("Pick a hand of 13 cards. Play 1 card per turn. Hit 'Next Turn' to clear the table."),
+        
         helpText("Your Hand Number:"),
         textOutput("handNumber"),
         
         ###Debug
-        tableOutput("openHands"),
+        #tableOutput("openHands"),
         
         # uiOutput("gameControls")
         
@@ -337,8 +402,12 @@ ui = fluidPage(
     #tableOutput("openHands"),
     mainPanel(
         fluidRow(
+            h3("The Table"),
             dataTableOutput("playedDisplay"),
-            dataTableOutput("handDisplay")
+            h3("Your Hand"),
+            #dataTableOutput("handDisplay")
+            uiOutput("handDisplay")
+            
             
         )
     )
